@@ -24,16 +24,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.darkrockstudios.libraries.mpfilepicker.DirectoryPicker
 import com.darkrockstudios.libraries.mpfilepicker.FilePicker
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.java.Java
+import io.ktor.client.plugins.onDownload
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.util.cio.writeChannel
+import io.ktor.utils.io.copyAndClose
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import java.io.BufferedOutputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.util.zip.ZipFile
 
+@OptIn(ExperimentalSerializationApi::class)
 @Composable
 @Preview
 fun App() {
@@ -53,6 +69,10 @@ fun App() {
         }
         var showFilePicker by remember { mutableStateOf(false) }
         var showDirectoryPicker by remember { mutableStateOf(false) }
+
+        val httpClient = remember {
+            HttpClient(Java)
+        }
         Column(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -112,7 +132,8 @@ fun App() {
                         withContext(Dispatchers.IO) {
                             val exportFile = File(exportFilePath!!)
                             val exportDir = exportFile.parent
-                            val tmpDir = File(exportDir + File.separator + exportFile.nameWithoutExtension).apply { mkdirs() }
+                            val tmpDir =
+                                File(exportDir + File.separator + exportFile.nameWithoutExtension).apply { mkdirs() }
                             ZipFile(exportFilePath!!).use { zip ->
                                 zip.entries().asSequence().forEach { entry ->
                                     zip.getInputStream(entry).use { input ->
@@ -130,7 +151,50 @@ fun App() {
                                 }
                             }
 
-                            // TODO
+                            File(exportDir).walk().forEach { jsonFile ->
+                                val channel =
+                                    if (jsonFile.parent == exportDir) "no_channel" else jsonFile.parentFile.name
+                                if (jsonFile.extension == "json") {
+                                    FileInputStream(jsonFile).use {
+                                        val items: JsonArray = Json.decodeFromStream(it)
+                                        items.forEach { item ->
+                                            item.jsonObject["files"]?.also { files ->
+                                                files.jsonArray.forEach { file ->
+                                                    file.jsonObject.also {
+                                                        val photoname =
+                                                            it["name"]?.jsonPrimitive?.content
+                                                        val photourl =
+                                                            it["url_private_download"]?.jsonPrimitive?.content
+                                                        val mimeType =
+                                                            it["mimetype"]?.jsonPrimitive?.content
+                                                        if (photourl != null && mimeType != null && (mimeType.startsWith(
+                                                                "image"
+                                                            ) || mimeType.startsWith("video"))
+                                                        ) {
+                                                            val destDir =
+                                                                File(downloadDirectory + File.separator + exportFile.nameWithoutExtension + " - Photos" + File.separator + channel).apply { mkdirs() }
+                                                            log = "Downloading $photourl..."
+                                                            httpClient.get(photourl) {
+                                                                onDownload { bytesSentTotal, contentLength ->
+                                                                    log =
+                                                                        "Downloading $photourl... $bytesSentTotal of $contentLength"
+                                                                }
+                                                            }.bodyAsChannel().copyAndClose(
+                                                                File(
+                                                                    destDir,
+                                                                    photoname!!
+                                                                ).writeChannel()
+                                                            )
+
+                                                        }
+                                                    }
+                                                }
+
+                                            }
+                                        }
+                                    }
+                                }
+                            }
 
                             log = "DONE!"
                             busy = false

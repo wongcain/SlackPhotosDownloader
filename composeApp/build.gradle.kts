@@ -22,6 +22,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.filepicker)
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.engine)
         }
         desktopMain.dependencies {
             implementation(compose.desktop.currentOs)
