@@ -24,8 +24,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.darkrockstudios.libraries.mpfilepicker.DirectoryPicker
 import com.darkrockstudios.libraries.mpfilepicker.FilePicker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.util.zip.ZipFile
 
 @Composable
 @Preview
@@ -102,6 +109,32 @@ fun App() {
                     busy = true
                     scope.launch {
                         log = "Extracting archive file..."
+                        withContext(Dispatchers.IO) {
+                            val exportFile = File(exportFilePath!!)
+                            val exportDir = exportFile.parent
+                            val tmpDir = File(exportDir + File.separator + exportFile.nameWithoutExtension).apply { mkdirs() }
+                            ZipFile(exportFilePath!!).use { zip ->
+                                zip.entries().asSequence().forEach { entry ->
+                                    zip.getInputStream(entry).use { input ->
+                                        val filePath = tmpDir.path + File.separator + entry.name
+                                        log = "Extracting archive file...${filePath}"
+                                        if (!entry.isDirectory) {
+                                            // if the entry is a file, extracts it
+                                            extractFile(input, filePath)
+                                        } else {
+                                            // if the entry is a directory, make the directory
+                                            val dir = File(filePath)
+                                            dir.mkdir()
+                                        }
+                                    }
+                                }
+                            }
+
+                            // TODO
+
+                            log = "DONE!"
+                            busy = false
+                        }
                     }
                 },
                 enabled = !busy && exportFilePath != null && downloadDirectory != null
@@ -136,4 +169,14 @@ fun App() {
             dir?.also { downloadDirectory = it }
         }
     }
+}
+
+fun extractFile(inputStream: InputStream, destFilePath: String) {
+    val bos = BufferedOutputStream(FileOutputStream(destFilePath))
+    val bytesIn = ByteArray(4096)
+    var read: Int
+    while (inputStream.read(bytesIn).also { read = it } != -1) {
+        bos.write(bytesIn, 0, read)
+    }
+    bos.close()
 }
