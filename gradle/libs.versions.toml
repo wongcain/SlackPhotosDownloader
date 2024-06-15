@@ -2,12 +2,22 @@
 compose-plugin = "1.6.10"
 junit = "4.13.2"
 kotlin = "2.0.0"
+ktor = "2.3.8"
+kotlinx-serialization = "1.6.3"
+kotlinx-coroutines = "1.8.0"
+filepicker = "3.1.0"
 
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+filepicker = { module = "com.darkrockstudios:mpfilepicker", version.ref = "filepicker" }
 
 
 [plugins]
