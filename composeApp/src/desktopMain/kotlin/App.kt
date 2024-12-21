@@ -156,41 +156,45 @@ fun App() {
                                     if (jsonFile.parent == exportDir) "no_channel" else jsonFile.parentFile.name
                                 if (jsonFile.extension == "json") {
                                     FileInputStream(jsonFile).use {
-                                        val items: JsonArray = Json.decodeFromStream(it)
-                                        items.forEach { item ->
-                                            item.jsonObject["files"]?.also { files ->
-                                                files.jsonArray.forEach { file ->
-                                                    file.jsonObject.also {
-                                                        val photoname =
-                                                            it["name"]?.jsonPrimitive?.content
-                                                        val photourl =
-                                                            it["url_private_download"]?.jsonPrimitive?.content
-                                                        val mimeType =
-                                                            it["mimetype"]?.jsonPrimitive?.content
-                                                        if (photourl != null && mimeType != null && (mimeType.startsWith(
-                                                                "image"
-                                                            ) || mimeType.startsWith("video"))
-                                                        ) {
-                                                            val destDir =
-                                                                File(downloadDirectory + File.separator + exportFile.nameWithoutExtension + " - Photos" + File.separator + channel).apply { mkdirs() }
-                                                            log = "Downloading $photourl..."
-                                                            httpClient.get(photourl) {
-                                                                onDownload { bytesSentTotal, contentLength ->
-                                                                    log =
-                                                                        "Downloading $photourl... $bytesSentTotal of $contentLength"
-                                                                }
-                                                            }.bodyAsChannel().copyAndClose(
-                                                                File(
-                                                                    destDir,
-                                                                    photoname!!
-                                                                ).writeChannel()
-                                                            )
+                                        try {
+                                            val items: JsonArray = Json.decodeFromStream(it)
+                                            items.forEach { item ->
+                                                item.jsonObject["files"]?.also { files ->
+                                                    files.jsonArray.forEach { file ->
+                                                        file.jsonObject.also {
+                                                            val photoname =
+                                                                it["name"]?.jsonPrimitive?.content
+                                                            val photourl =
+                                                                it["url_private_download"]?.jsonPrimitive?.content
+                                                            val mimeType =
+                                                                it["mimetype"]?.jsonPrimitive?.content
+                                                            if (photourl != null && mimeType != null && (mimeType.startsWith(
+                                                                    "image"
+                                                                ) || mimeType.startsWith("video"))
+                                                            ) {
+                                                                val destDir =
+                                                                    File(downloadDirectory + File.separator + exportFile.nameWithoutExtension + " - Photos" + File.separator + channel).apply { mkdirs() }
+                                                                log = "Downloading $photourl..."
+                                                                httpClient.get(photourl) {
+                                                                    onDownload { bytesSentTotal, contentLength ->
+                                                                        log =
+                                                                            "Downloading $photourl... $bytesSentTotal of $contentLength"
+                                                                    }
+                                                                }.bodyAsChannel().copyAndClose(
+                                                                    File(
+                                                                        destDir,
+                                                                        photoname!!
+                                                                    ).writeChannel()
+                                                                )
 
+                                                            }
                                                         }
                                                     }
-                                                }
 
+                                                }
                                             }
+                                        } catch (e: Throwable) {
+                                            println("@@ error: $e")
                                         }
                                     }
                                 }
